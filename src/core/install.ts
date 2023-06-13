@@ -1,4 +1,4 @@
-import { getNodeVersion, isMac, isWindows } from '../utils/index'
+import { getNodeVersion, isMac, isWindows, isX64 } from '../utils/index'
 import type { INodeVersion, ResultPromise } from './install.type'
 import { Url } from '../common/url'
 import { mkdirVersion } from '../file/index'
@@ -10,7 +10,9 @@ import progress from 'cli-progress'
 import tar from 'tar'
 import AdmZip from 'adm-zip'
 import zlib from 'zlib'
-import {exec} from 'child_process'
+import { exec } from 'child_process'
+import os from 'os'
+import { EnvVar } from '../utils'
 const concatBuff = (buffList: Array<any>) => {
     let buffSize = 0;
     for (let index = 0; index < buffList.length; index++) {
@@ -34,7 +36,7 @@ export const checkVersion = async (version: string) => {
     const result = list.find(v => v.version.includes(version))
     if (result) {
         console.log(chalk.green('找到该版本', result.version))
-        if(fs.existsSync(`${dirName}/node-${result.version}`)){
+        if (fs.existsSync(`${dirName}/node-${result.version}`)) {
             console.log(chalk.red(`您之前安装过该版本 ${result.version}`))
             changeUserPorcessEvn(result.version)
             return null
@@ -67,7 +69,7 @@ export const unZipFile = (result: INodeVersion): Promise<ResultPromise> => {
 
         if (isWindows()) {
             const zip = new AdmZip(`${dirName}/${result.version}/node-${result.version}.zip`);
-            zip.extractAllTo(`${dirName}/${result.version}/`,true);
+            zip.extractAllTo(`${dirName}/${result.version}/`, true);
             resolve({
                 success: true
             })
@@ -92,8 +94,9 @@ export const instllNodeVersion = async (result: INodeVersion) => {
             suffix = 'zip'
         }
         if (isMac()) {
-            token = '-darwin-x64'
-            url = url + `-darwin-arm64.tar.gz`
+            //如果是mac 判断是不是arm64
+            token = `-darwin-${isX64() ? 'x64' : 'arm64'}`
+            url = url + `${token}.tar.gz`
             suffix = 'tar.gz'
         }
         //下载文件
@@ -134,17 +137,20 @@ export const instllNodeVersion = async (result: INodeVersion) => {
 }
 
 
-export const changeUserPorcessEvn = (version:string) => {
+
+export const changeUserPorcessEvn = (version: string) => {
     console.log(chalk.green('开始修改环境变量'))
     if (isWindows()) {
         const path = `${dirName}/node-${version}/`
         exec(`setx path "%path%;${path}"`)
     }
     if (isMac()) {
-        const path = `${dirName}/node-${process.version}/bin`
-        const newPath = `${path}:${process.env.PATH}`
-        console.log(chalk.green('修改环境变量完成'))
-        console.log(chalk.green('请重启终端'))
-        process.env.PATH =  newPath
+        let processEnv = new EnvVar(version)
+        const zshrc = fs.readFileSync(`${os.homedir()}/.zshrc`, 'utf-8')
+        if (!zshrc.includes(`PATH=$${processEnv.ZSVM_VERSION}`)) {
+            exec(`echo 'export PATH=$${processEnv.ZSVM_VERSION}:$PATH' >> ~/.zshrc`)
+        }
+        exec(`source ~/.zshrc`)
     }
+    console.log(chalk.green('修改环境变量完成'))
 }
