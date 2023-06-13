@@ -10,9 +10,10 @@ import progress from 'cli-progress'
 import tar from 'tar'
 import AdmZip from 'adm-zip'
 import zlib from 'zlib'
-import { exec } from 'child_process'
+import { exec, spawnSync } from 'child_process'
 import os from 'os'
 import { EnvVar } from '../utils'
+import path from 'path'
 const concatBuff = (buffList: Array<any>) => {
     let buffSize = 0;
     for (let index = 0; index < buffList.length; index++) {
@@ -141,8 +142,12 @@ export const instllNodeVersion = async (result: INodeVersion) => {
 export const changeUserPorcessEvn = (version: string) => {
     console.log(chalk.green('开始修改环境变量'))
     if (isWindows()) {
-        const path = `${dirName}/node-${version}/`
-        exec(`setx path "%path%;${path}"`)
+        spawnSync('powershell', [`[Environment]::SetEnvironmentVariable("ZSVM_VERSION", "${[dirName,'node-'+ version].join(path.sep)}", "User")`], { stdio: 'inherit' })
+        spawnSync('powershell', [`[Environment]::SetEnvironmentVariable("Path", "%ZSVM_VERSION%;$env:Path", "User")`], { stdio: 'inherit' } )
+        // const processEnv = new EnvVar(version)
+
+        // const path = `${dirName}/node-${version}/`
+        // exec(`setx path "%path%;${path}"`)
     }
     if (isMac()) {
         let processEnv = new EnvVar(version)
