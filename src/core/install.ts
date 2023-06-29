@@ -10,7 +10,7 @@ import progress from 'cli-progress'
 import tar from 'tar'
 import AdmZip from 'adm-zip'
 import zlib from 'zlib'
-import { exec, spawnSync } from 'child_process'
+import { exec, spawnSync,execSync } from 'child_process'
 import os from 'os'
 import { EnvVar } from '../utils'
 import path from 'path'
@@ -142,12 +142,25 @@ export const instllNodeVersion = async (result: INodeVersion) => {
 export const changeUserPorcessEvn = (version: string) => {
     console.log(chalk.green('开始修改环境变量'))
     if (isWindows()) {
-        spawnSync('powershell', [`[Environment]::SetEnvironmentVariable("ZSVM_VERSION", "${[dirName,'node-'+ version].join(path.sep)}", "User")`], { stdio: 'inherit' })
-        spawnSync('powershell', [`[Environment]::SetEnvironmentVariable("Path", "%ZSVM_VERSION%;$env:Path", "User")`], { stdio: 'inherit' } )
-        // const processEnv = new EnvVar(version)
+        //修改系统环境变量
+        console.log(chalk.green('修改系统环境变量'))
+        const result = execSync(`powershell -Command "[Environment]::GetEnvironmentVariable('ZSVM_VERSION', [System.EnvironmentVariableTarget]::Machine)"`,{encoding:'utf-8'});
+        if(result){
+            spawnSync('powershell', [`[Environment]::SetEnvironmentVariable("ZSVM_VERSION", "${[dirName,'node-'+ version].join(path.sep)}", "Machine")`], { stdio: 'inherit' })
+        }else{
+            spawnSync('powershell', [`[Environment]::SetEnvironmentVariable("ZSVM_VERSION", "${[dirName,'node-'+ version].join(path.sep)}", "Machine")`], { stdio: 'inherit' })
+            spawnSync('powershell', [`[Environment]::SetEnvironmentVariable("Path", "%ZSVM_VERSION%;$env:Path", "Machine")`], { stdio: 'inherit' } )
+        }
+        //用户环境变量
+        console.log(chalk.green('修改User环境变量'))
+        const resultUser = execSync(`powershell -Command "[Environment]::GetEnvironmentVariable('ZSVM_VERSION', [System.EnvironmentVariableTarget]::User)"`,{encoding:'utf-8'});
+        if(resultUser){
+            spawnSync('powershell', [`[Environment]::SetEnvironmentVariable("ZSVM_VERSION", "${[dirName,'node-'+ version].join(path.sep)}", "User")`], { stdio: 'inherit' })
+        }else{
+            spawnSync('powershell', [`[Environment]::SetEnvironmentVariable("ZSVM_VERSION", "${[dirName,'node-'+ version].join(path.sep)}", "User")`], { stdio: 'inherit' })
+            spawnSync('powershell', [`[Environment]::SetEnvironmentVariable("Path", "%ZSVM_VERSION%;$env:Path", "User")`], { stdio: 'inherit' } )
+        }
 
-        // const path = `${dirName}/node-${version}/`
-        // exec(`setx path "%path%;${path}"`)
     }
     if (isMac()) {
         let processEnv = new EnvVar(version)
